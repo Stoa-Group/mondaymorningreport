@@ -1,0 +1,455 @@
+{
+  "id": "274f883c-f0a9-4244-acea-ae1b672c8322",
+  "name": "Monday Morning Report",
+  "version": "0.0.1",
+  "datasetsMapping": [
+    {
+      "dataSetId": "b666b357-41f6-441e-92ee-7700fa575517",
+      "alias": "googlereviews",
+      "fields": [
+        {
+          "alias": "Property",
+          "columnName": "Property"
+        },
+        {
+          "alias": "category",
+          "columnName": "category"
+        },
+        {
+          "alias": "sentiment",
+          "columnName": "sentiment"
+        },
+        {
+          "alias": "commonphrase",
+          "columnName": "common_phrase"
+        },
+        {
+          "alias": "scrapedat",
+          "columnName": "scraped_at"
+        },
+        {
+          "alias": "ReviewText",
+          "columnName": "Review_Text"
+        },
+        {
+          "alias": "rating",
+          "columnName": "rating"
+        },
+        {
+          "alias": "reviewername",
+          "columnName": "reviewer_name"
+        },
+        {
+          "alias": "reviewdate",
+          "columnName": "review_date"
+        },
+        {
+          "alias": "reviewdateoriginal",
+          "columnName": "review_date_original"
+        },
+        {
+          "alias": "reviewyear",
+          "columnName": "review_year"
+        },
+        {
+          "alias": "reviewmonth",
+          "columnName": "review_month"
+        },
+        {
+          "alias": "reviewmonthname",
+          "columnName": "review_month_name"
+        },
+        {
+          "alias": "reviewdayofweek",
+          "columnName": "review_day_of_week"
+        },
+        {
+          "alias": "propertyurl",
+          "columnName": "property_url"
+        },
+        {
+          "alias": "requestip",
+          "columnName": "request.ip"
+        },
+        {
+          "alias": "requesttimestamp",
+          "columnName": "request.timestamp"
+        },
+        {
+          "alias": "extractionmethod",
+          "columnName": "extraction_method"
+        },
+        {
+          "alias": "Location",
+          "columnName": "Location"
+        },
+        {
+          "alias": "TotalUnits",
+          "columnName": "Total Units"
+        },
+        {
+          "alias": "BirthOrder",
+          "columnName": "Birth Order"
+        },
+        {
+          "alias": "Rank",
+          "columnName": "Rank"
+        }
+      ],
+      "dql": null
+    },
+    {
+      "dataSetId": "b71abe2e-4484-434d-af06-e708ba57f768",
+      "alias": "MMRData",
+      "fields": [
+        {
+          "alias": "Property",
+          "columnName": "Property"
+        },
+        {
+          "alias": "Location",
+          "columnName": "Location"
+        },
+        {
+          "alias": "TotalUnits",
+          "columnName": "Total Units"
+        },
+        {
+          "alias": "OccupancyPercent",
+          "columnName": "Occupancy %"
+        },
+        {
+          "alias": "CurrentLeasedPercent",
+          "columnName": "Current Leased %"
+        },
+        {
+          "alias": "MI",
+          "columnName": "MI"
+        },
+        {
+          "alias": "MO",
+          "columnName": "MO"
+        },
+        {
+          "alias": "1stVisit",
+          "columnName": "1st Visit"
+        },
+        {
+          "alias": "ReturnVisitCount",
+          "columnName": "Return Visit Count"
+        },
+        {
+          "alias": "Applied",
+          "columnName": "Applied"
+        },
+        {
+          "alias": "Canceled",
+          "columnName": "Canceled"
+        },
+        {
+          "alias": "Denied",
+          "columnName": "Denied"
+        },
+        {
+          "alias": "NetLsd",
+          "columnName": "Net Lsd"
+        },
+        {
+          "alias": "T12LeasesExpired",
+          "columnName": "T-12 Leases Expired"
+        },
+        {
+          "alias": "T12LeasesRenewed",
+          "columnName": "T-12 Leases Renewed"
+        },
+        {
+          "alias": "Delinquent",
+          "columnName": "Delinquent"
+        },
+        {
+          "alias": "OccupiedRent",
+          "columnName": "Occupied Rent"
+        },
+        {
+          "alias": "BudgetedRent",
+          "columnName": "Budgeted Rent"
+        },
+        {
+          "alias": "OccupiedRentPSF",
+          "columnName": "Occupied Rent/SF"
+        },
+        {
+          "alias": "BudgetedRentPSF",
+          "columnName": "Budgeted Rent/SF"
+        },
+        {
+          "alias": "CurrentMonthIncome",
+          "columnName": "Current Month Income"
+        },
+        {
+          "alias": "BudgetedIncome",
+          "columnName": "Budgeted Income"
+        },
+        {
+          "alias": "MoveInRent",
+          "columnName": "Move-In Rent"
+        },
+        {
+          "alias": "MoveinRentPSF",
+          "columnName": "Move-in Rent/SF"
+        },
+        {
+          "alias": "OccUnits",
+          "columnName": "Occ Units"
+        },
+        {
+          "alias": "Week1EndDate",
+          "columnName": "Week1 End Date"
+        },
+        {
+          "alias": "Week1MoveIns",
+          "columnName": "Week1: Move Ins"
+        },
+        {
+          "alias": "Week1MoveOuts",
+          "columnName": "Week1: Move Outs"
+        },
+        {
+          "alias": "Week1OccUnits",
+          "columnName": "Week1: Occ Units"
+        },
+        {
+          "alias": "Week1OccPercentage",
+          "columnName": "Week1: Occ %"
+        },
+        {
+          "alias": "Week2EndDate",
+          "columnName": "Week2 End Date"
+        },
+        {
+          "alias": "Week2MoveIns",
+          "columnName": "Week2: Move Ins"
+        },
+        {
+          "alias": "Week2MoveOuts",
+          "columnName": "Week2: Move Outs"
+        },
+        {
+          "alias": "Week2OccUnits",
+          "columnName": "Week2: Occ Units"
+        },
+        {
+          "alias": "Week2OccPercentage",
+          "columnName": "Week2: Occ %"
+        },
+        {
+          "alias": "Week3EndDate",
+          "columnName": "Week3 End Date"
+        },
+        {
+          "alias": "Week3MoveIns",
+          "columnName": "Week3: Move Ins"
+        },
+        {
+          "alias": "Week3MoveOuts",
+          "columnName": "Week3: Move Outs"
+        },
+        {
+          "alias": "Week3OccUnits",
+          "columnName": "Week3: Occ Units"
+        },
+        {
+          "alias": "Week3OccPercentage",
+          "columnName": "Week3: Occ %"
+        },
+        {
+          "alias": "Week4EndDate",
+          "columnName": "Week4 End Date"
+        },
+        {
+          "alias": "Week4MoveIns",
+          "columnName": "Week4: Move Ins"
+        },
+        {
+          "alias": "Week4MoveOuts",
+          "columnName": "Week4: Move Outs"
+        },
+        {
+          "alias": "Week4OccUnits",
+          "columnName": "Week4: Occ Units"
+        },
+        {
+          "alias": "Week4OccPercentage",
+          "columnName": "Week4: Occ %"
+        },
+        {
+          "alias": "Week5EndDate",
+          "columnName": "Week5 End Date"
+        },
+        {
+          "alias": "Week5MoveIns",
+          "columnName": "Week5: Move Ins"
+        },
+        {
+          "alias": "Week5MoveOuts",
+          "columnName": "Week5: Move Outs"
+        },
+        {
+          "alias": "Week5OccUnits",
+          "columnName": "Week5: Occ Units"
+        },
+        {
+          "alias": "Week5OccPercentage",
+          "columnName": "Week5: Occ %"
+        },
+        {
+          "alias": "Week6EndDate",
+          "columnName": "Week6 End Date"
+        },
+        {
+          "alias": "Week6MoveIns",
+          "columnName": "Week6: Move Ins"
+        },
+        {
+          "alias": "Week6MoveOuts",
+          "columnName": "Week6: Move Outs"
+        },
+        {
+          "alias": "Week6OccUnits",
+          "columnName": "Week6: Occ Units"
+        },
+        {
+          "alias": "Week6OccPercentage",
+          "columnName": "Week6: Occ %"
+        },
+        {
+          "alias": "Week7EndDate",
+          "columnName": "Week7 End Date"
+        },
+        {
+          "alias": "Week7MoveIns",
+          "columnName": "Week7: Move Ins"
+        },
+        {
+          "alias": "Week7MoveOuts",
+          "columnName": "Week7: Move Outs"
+        },
+        {
+          "alias": "Week7OccUnits",
+          "columnName": "Week7: Occ Units"
+        },
+        {
+          "alias": "Week7OccPercentage",
+          "columnName": "Week7: Occ %"
+        },
+        {
+          "alias": "InServiceUnits",
+          "columnName": "In-Service Units"
+        },
+        {
+          "alias": "BudgetedOccupancyCurrentMonth",
+          "columnName": "Budgeted Occupancy (Current Month)"
+        },
+        {
+          "alias": "BudgetedOccupancyPercentageCurrentMonth",
+          "columnName": "Budgeted Occupancy % (Current Month)"
+        },
+        {
+          "alias": "BudgetedLeasedCurrentMonth",
+          "columnName": "Budgeted Leased (Current Month)"
+        },
+        {
+          "alias": "BudgetedLeasedPercentageCurrentMonth",
+          "columnName": "Budgeted Leased % (Current Month)"
+        },
+        {
+          "alias": "ReportDate",
+          "columnName": "ReportDate"
+        },
+        {
+          "alias": "ConstructionStatus",
+          "columnName": "Construction Status"
+        },
+        {
+          "alias": "Rank",
+          "columnName": "Rank"
+        },
+        {
+          "alias": "PreviousOccupancyPercentage",
+          "columnName": "PreviousOccupancy%"
+        },
+        {
+          "alias": "PreviousLeasedPercentage",
+          "columnName": "PreviousLeased%"
+        },
+        {
+          "alias": "PreviousDelinquentUnits",
+          "columnName": "PreviousDelinquentUnits"
+        },
+        {
+          "alias": "WeekStart",
+          "columnName": "WeekStart"
+        },
+        {
+          "alias": "LatestDate",
+          "columnName": "LatestDate"
+        },
+        {
+          "alias": "City",
+          "columnName": "City"
+        },
+        {
+          "alias": "State",
+          "columnName": "State"
+        },
+        {
+          "alias": "Status",
+          "columnName": "Status"
+        },
+        {
+          "alias": "FinancingStatus",
+          "columnName": "Financing Status"
+        },
+        {
+          "alias": "ProductType",
+          "columnName": "Product Type"
+        },
+        {
+          "alias": "Units",
+          "columnName": "Units"
+        },
+        {
+          "alias": "FullAddress",
+          "columnName": "Full Address"
+        },
+        {
+          "alias": "Latitude",
+          "columnName": "Latitude "
+        },
+        {
+          "alias": "Longitude",
+          "columnName": "Longitude"
+        },
+        {
+          "alias": "Region",
+          "columnName": "Region"
+        },
+        {
+          "alias": "LatestConstructionStatus",
+          "columnName": "Latest Construction Status"
+        },
+        {
+          "alias": "BirthOrder",
+          "columnName": "Birth Order"
+        }
+      ],
+      "dql": null
+    }
+  ],
+  "size": {
+    "width": 1,
+    "height": 1
+  },
+  "fullpage": true,
+  "fileName": "manifest.json"
+}

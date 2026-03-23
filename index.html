@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5, user-scalable=yes"/>
+  <meta name="theme-color" content="#7e8a6b"/>
+  <title>Monday Morning Report — Stoa Group</title>
+  <script>(function(){var w=window,d=document.documentElement;var m=w.matchMedia&&w.matchMedia('(max-width:768px)').matches||('ontouchstart'in w)||(w.innerWidth<=768);d.setAttribute('data-mobile',m?'true':'false');w.IS_MOBILE=m;})();</script>
+  <link rel="stylesheet" href="app.css"/>
+
+  <!-- Domo utils: on localhost use stub (avoids SES/getAttribute errors). In Domo, load real SDK. -->
+  <script>
+    (function(){
+      var isLocal = typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (isLocal) {
+        window.domo = {
+          get: function(){ return Promise.reject(new Error('Monday Morning Report requires Domo. Open this app from your Domo dashboard.')); }
+        };
+      } else {
+        document.write('<script src="https://unpkg.com/ryuu.js@4.6.0/dist/domo.js" integrity="sha384-YYsd9wQ+wDlUWhvpfGdptxmNYIqBC+52oJtWgPKJadbs3sSFTY/+ZotPbEHTTRWz" crossorigin="anonymous"><\/script>');
+      }
+    })();
+  </script>
+
+  <!-- Charts + Map -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <div>
+        <h1>Monday Morning Report</h1>
+        <div id="last-updated" class="subtle">Loading…</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <label class="control">
+        <span>WeekStart</span>
+        <select id="weekstart-select" class="select" title="Select the week to view data for. All charts and metrics will update to show data as of the selected week."></select>
+      </label>
+      <span class="badge" title="Property management company">Stoa Group</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- KPI row -->
+    <section class="section">
+      <div class="section-title">Portfolio Overview</div>
+      <div id="kpi-grid" class="kpi-grid"></div>
+    </section>
+
+    <!-- Tabs -->
+    <section class="section">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="leasing" title="Move-ins, move-outs, and net lease activity by property">Leasing</button>
+        <button class="tab" data-tab="t12rent" title="T-12 lease renewals vs expirations and rent metrics (occupied vs budgeted)">Renewals and Occupancy</button>
+        <button class="tab" data-tab="income" title="Budgeted vs actual income performance by property">Income</button>
+        <button class="tab" data-tab="timelines" title="Historical trends for occupancy and leased percentages over time">Timelines</button>
+        <button class="tab" data-tab="reviews" title="Google review ratings and feedback by property">Reviews</button>
+      </div>
+
+      <div class="tabpanes">
+        <div id="tab-leasing" class="tabpane active"></div>
+        <div id="tab-t12rent" class="tabpane"></div>
+        <div id="tab-income" class="tabpane"></div>
+        <div id="tab-timelines" class="tabpane"></div>
+        <div id="tab-reviews" class="tabpane"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div id="modal-title" class="modal-title"></div>
+        <button id="modal-close" class="btn">Close</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+/* =========================================================
+   Monday Morning Report — Stoa Group
+   Aligned with Banking / Deal Pipeline / Portfolio for cohesive styling
+   ========================================================= */
+
+:root {
+  /* Stoa Group Brand (same as other dashboards) */
+  --primary-green: #7e8a6b;
+  --primary-grey: #757270;
+  --secondary-green: #a6ad8a;
+  --secondary-black: #333333;
+  --secondary-blue: #bdc2ce;
+  --secondary-grey: #efeff1;
+  --white: #ffffff;
+
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --border-color: #e5e7eb;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --hover-bg: #f9fafb;
+
+  --stoa-green: var(--primary-green);
+  --stoa-green-dark: #6b7a5a;
+  --stoa-green-light: var(--secondary-green);
+  --stoa-green-pale: #e8ebe5;
+
+  /* MMR aliases (keep for existing selectors) */
+  --surface: var(--white);
+  --surface-2: var(--bg-secondary);
+  --line: var(--border-color);
+  --line-strong: #d1d5db;
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --brand: var(--primary-green);
+  --brand-2: var(--secondary-green);
+  --accent: var(--secondary-blue);
+  --danger: #e75d5d;
+  --good: #2f7a4f;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 2px 4px rgba(126, 138, 107, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+
+  --font-body: 'Gotham Book', 'Gotham', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-medium: 'Gotham Medium', 'Gotham', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+#root, .app-root { width: 100%; height: 100%; overflow: hidden; }
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  font: 14px/1.5 var(--font-body);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+html[data-mobile="true"] body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+html[data-mobile="true"] button,html[data-mobile="true"] .btn{min-height:44px}
+.app-root { display: flex; flex-direction: column; min-height: 0; }
+.app-content, main.page, .page { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+/* =========================================================
+   Header (Stoa topbar: 2px green border, title in green)
+   ========================================================= */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px clamp(12px, 4vw, 28px);
+  background: var(--white);
+  border-bottom: 2px solid var(--primary-green);
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: flex-end; gap: 16px; }
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(18px, 2.3vw, 24px);
+  font-weight: 600;
+  color: var(--primary-green);
+  font-family: var(--font-medium);
+}
+.subtle { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+.controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.control { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+
+.select {
+  appearance: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+  font-family: var(--font-body);
+}
+
+.badge {
+  background: linear-gradient(135deg, var(--stoa-green-pale), rgba(166, 173, 138, 0.1));
+  color: var(--stoa-green-dark);
+  border: 1px solid var(--stoa-green-light);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(126, 138, 107, 0.12);
+}
+
+/* =========================================================
+   Page & Sections
+   ========================================================= */
+.page { padding: 18px clamp(12px, 4vw, 28px); display: flex; flex-direction: column; gap: 18px; }
+.section { display: flex; flex-direction: column; gap: 10px; }
+.section-title { font-weight: 600; font-size: 15px; color: var(--text-primary); font-family: var(--font-medium); }
+
+/* =========================================================
+   Tabs (Stoa main-tab style: underline active, green)
+   ========================================================= */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 2px solid transparent; padding-bottom: 0; }
+.tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+  margin-bottom: -2px;
+  border-radius: 0;
+}
+.tab:hover { color: var(--text-primary); background: var(--hover-bg); }
+.tab.active {
+  color: var(--primary-green);
+  border-bottom-color: var(--primary-green);
+  font-weight: 600;
+}
+.tab:focus-visible { outline: 2px solid var(--primary-green); outline-offset: 2px; }
+
+.tabpanes {
+  background: var(--white);
+  border: 1px solid rgba(126, 138, 107, 0.15);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.tabpane { display: none; }
+.tabpane.active { display: block; }
+
+/* =========================================================
+   KPI Grid (Stoa card style)
+   ========================================================= */
+.kpi-grid { display: grid; gap: 12px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+.kpi {
+  grid-column: span 4;
+  background: var(--white);
+  border: 1px solid rgba(126, 138, 107, 0.15);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+  transition: all var(--transition-base);
+}
+.kpi:hover {
+  border-color: var(--stoa-green-light);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  cursor: pointer;
+}
+.kpi-title { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; }
+.kpi-trend { font-weight: 600; font-size: 12px; }
+.kpi-trend.up { color: var(--good); }
+.kpi-trend.down { color: var(--danger); }
+.kpi-value { font-weight: 700; font-size: 26px; margin-top: 6px; color: var(--ink); font-family: var(--font-medium); }
+.kpi-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.kpi .sub {
+  background: var(--stoa-green-pale);
+  border: 1px solid var(--stoa-green-light);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.sub .label { font-size: 11px; color: var(--stoa-green-dark); font-weight: 600; }
+.sub .val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--primary-green); font-weight: 700; }
+
+@media (max-width: 1100px) { .kpi { grid-column: span 6; } }
+@media (max-width: 640px) { .kpi { grid-column: span 12; } }
+
+/* =========================================================
+   Panels (Stoa panel style)
+   ========================================================= */
+.panel {
+  background: var(--white);
+  border: 1px solid rgba(126, 138, 107, 0.15);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  box-shadow: var(--shadow);
+  overflow: visible;
+}
+.panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.panel-title { font-weight: 600; font-size: 16px; color: var(--text-primary); font-family: var(--font-medium); }
+.inline-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-2 > .panel { min-width: 0; }
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn {
+  appearance: none;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+.btn:hover { background: var(--hover-bg); border-color: var(--stoa-green-light); }
+
+/* =========================================================
+   Table
+   ========================================================= */
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.table th { background: var(--surface-2); text-align: left; color: var(--text-primary); position: sticky; top: 0; z-index: 1; font-weight: 600; }
+.table tr:last-child td { border-bottom: none; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* =========================================================
+   Modal (Stoa modal style)
+   ========================================================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+}
+.modal[aria-hidden="false"] { display: flex; }
+.modal-card {
+  width: min(1100px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+.modal-head {
+  position: sticky;
+  top: 0;
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  z-index: 10;
+}
+.modal-title { font-weight: 600; font-size: 18px; color: var(--text-primary); }
+.modal-body { padding: 16px 20px; overflow-x: auto; max-width: 100%; box-sizing: border-box; }
+
+#map { height: 520px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+
+/* =========================================================
+   Callout badges, breadcrumbs, panel body
+   ========================================================= */
+.callout-badge,
+.callout-rentavg,
+.callout-net,
+.callout-renewal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--stoa-green-light);
+  border-radius: var(--radius-sm);
+  background: var(--stoa-green-pale);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.panel .panel-body {
+  height: clamp(260px, 42vh, 420px);
+  position: relative;
+  width: 100%;
+}
+.panel .panel-body > canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  margin: 0;
+}
+.panel .panel-head { padding-bottom: 6px; }
+
+.breadcrumb, .panel .crumbs {
+  min-height: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel .crumbs:empty { display: none; }
+
+/* Table wrapper for horizontal scroll */
+.table-wrapper { overflow-x: auto; max-width: 100%; }
+.table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; max-width: 100%; box-sizing: border-box; }
+.table thead th, .table tbody td { white-space: nowrap; }
+
+/* Word cloud */
+.wordcloud { height: clamp(260px, 42vh, 420px); position: relative; overflow: hidden; }
+.wc-word { position: absolute; line-height: 1.05; user-select: none; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* Aggressive compact mode for small screens */
+@media (max-width: 1024px) {
+  button, .seg-btn, .tab, .tab-main, .pill, select, .home-btn, .back-btn, .export-pdf-btn {
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .kpi-card, .kpi, .metric-card, .panel {
+    padding: 8px;
+    min-height: 70px;
+  }
+
+  .kpi-value, .metric-value {
+    font-size: clamp(17px, 5vw, 22px);
+    line-height: 1.05;
+  }
+
+  .kpi-label, .metric-label, .panel-title {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-grid, .metrics-grid, .analytics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .property-header .meta span {
+    font-size: 10px;
+    margin-right: 6px;
+  }
+}
+
+@media (max-width: 520px) {
+  .kpi-grid, .metrics-grid, .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-card, .kpi, .metric-card, .panel {
+    min-height: 60px;
+  }
+}
+
+
+/* === Apple-like UI polish === */
+:root {
+  --card-radius: 16px;
+  --card-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  --card-border: rgba(15, 23, 42, 0.08);
+}
+
+.kpi-card, .kpi, .metric-card, .panel, .card {
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
+  background: #fff;
+}
+
+.kpi-value, .metric-value {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.kpi-label, .metric-label, .panel-title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.property-header h2,
+.detail-title,
+.page-title {
+  letter-spacing: -0.01em;
+}
+
+/* Smaller screens: tighter cards + cleaner layout */
+@media (max-width: 900px) {
+  .kpi-card, .kpi, .metric-card, .panel, .card {
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  }
+
+  .kpi-value, .metric-value {
+    font-size: clamp(18px, 5.5vw, 26px);
+  }
+}
+
+/* === Mobile app mode === */
+@media (max-width: 900px) {
+  body {
+    background: #f7f7f8;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #fff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  }
+
+  .tabs-main {
+    background: #f6f7f9;
+    border-color: rgba(15, 23, 42, 0.08);
+  }
+
+  .tab-main {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
+  .tab-main.active {
+    box-shadow: 0 10px 18px rgba(126, 138, 107, 0.35);
+  }
+
+  .side-card,
+  .kpi-card,
+  .kpi,
+  .metric-card,
+  .panel,
+  .chart-card {
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+
+  .side-card:active,
+  .kpi-card:active,
+  .metric-card:active,
+  .panel:active,
+  .chart-card:active {
+    transform: scale(0.99);
+  }
+}
+
+@media (max-width: 640px) {
+  .tabs-main {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .tab-main {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-card,
+  .kpi-card,
+  .kpi,
+  .metric-card,
+  .panel,
+  .chart-card,
+  .tab-main,
+  .tab,
+  .seg-btn,
+  .pill {
+    transition: none !important;
+  }
+}
