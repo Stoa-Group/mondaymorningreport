@@ -4213,7 +4213,7 @@ function reviewsTable(reviews, property, rating, category){
   }
 
   // MAIN
-  let MMR=[], REV=[], weekOptions=[], selectedWeek=null, canonicalProperties=[];
+  let MMR=[], REV=[], weekOptions=[], selectedWeek=null;
 
   async function init(){
     const [mmrRaw, revRaw, plResult] = await Promise.all([
@@ -4221,7 +4221,6 @@ function reviewsTable(reviews, property, rating, category){
       fetchAlias(ALIASES.REV, FIELDS.REV).catch(()=>[]),
       fetchPropertyListStatus()
     ]);
-    canonicalProperties = plResult.canonicalProperties || [];
     MMR = overlayDbStatus(mmrRaw, plResult.statusMap || plResult);
     REV = revRaw;
 
@@ -4240,44 +4239,52 @@ function reviewsTable(reviews, property, rating, category){
     return rows.filter(r => (get(r,"WeekStart")||"").toString().startsWith(selectedWeek));
   }
 
-  /** Build display rows: include all MMR-email properties. Use selected week when available, else most recent week per property. */
-  function buildRowsForDisplay() {
-    if (!selectedWeek) return sortByBirth(byActive(MMR));
-    const weekRows = filterBySelectedWeek(MMR);
-    const byPropWeek = {};
-    weekRows.forEach(r => {
-      const p = (get(r,"Property")||"").toString().trim();
-      if (p) byPropWeek[p] = r;
+  /**
+   * Same pipeline as monday morning email report `filterToMostRecentWeek`:
+   * authoritative Status is already overlaid; keep Lease-Up / Stabilized;
+   * one row per Property (latest ReportDate); sort by BirthOrder.
+   * When `weekPrefix` is set, only rows for that WeekStart (dashboard week picker).
+   */
+  function filterMmrLikeEmailReport(allRows, weekPrefix) {
+    if (!allRows || !allRows.length) return [];
+    let rows = allRows.filter(r => {
+      const st = (get(r, "Status") || "").toString().trim().toLowerCase();
+      return st === "lease-up" || st === "stabilized";
     });
-    const mostRecentByProp = {};
-    MMR.forEach(r => {
-      const p = (get(r,"Property")||"").toString().trim();
-      if (!p) return;
-      const wk = (get(r,"WeekStart")||"").toString().slice(0,10);
-      if (!wk) return;
-      const dt = new Date(wk).getTime();
-      if (!mostRecentByProp[p] || dt > (mostRecentByProp[p]._t || 0)) {
-        const c = { ...r }; c._t = dt; mostRecentByProp[p] = c;
+    if (weekPrefix) {
+      const pfx = weekPrefix.toString().slice(0, 10);
+      rows = rows.filter(r => (get(r, "WeekStart") || "").toString().slice(0, 10) === pfx);
+    }
+    const propertyMap = {};
+    rows.forEach(row => {
+      const property = (get(row, "Property") || "").toString().trim();
+      if (!property) return;
+      const rd = get(row, "ReportDate");
+      if (!rd) return;
+      const dateValue = new Date(rd);
+      if (isNaN(+dateValue)) return;
+      if (!propertyMap[property] || dateValue > propertyMap[property].maxDate) {
+        propertyMap[property] = { maxDate: dateValue, row: row };
       }
     });
-    const out = [];
-    const seen = new Set();
-    if (canonicalProperties.length > 0) {
-      canonicalProperties.forEach(cp => {
-        const p = cp.Property;
-        let row = byPropWeek[p];
-        if (!row) {
-          const mr = mostRecentByProp[p];
-          row = mr ? (() => { const x = { ...mr }; delete x._t; return x; })() : { Property: p, Status: cp.Status, WeekStart: selectedWeek };
-        }
-        if (!seen.has(p)) { out.push(row); seen.add(p); }
+    let out = Object.values(propertyMap).map(o => o.row);
+    if (out.length === 0) {
+      const byProp = {};
+      rows.forEach(row => {
+        const property = (get(row, "Property") || "").toString().trim();
+        if (!property) return;
+        if (!byProp[property]) byProp[property] = row;
       });
+      out = Object.values(byProp);
     }
-    byActive(weekRows).forEach(r => {
-      const p = (get(r,"Property")||"").toString().trim();
-      if (p && !seen.has(p)) { out.push(r); seen.add(p); }
-    });
     return sortByBirth(out);
+  }
+
+  function buildRowsForDisplay() {
+    const week = selectedWeek ? selectedWeek.toString().slice(0, 10) : null;
+    const primary = filterMmrLikeEmailReport(MMR, week);
+    if (primary.length > 0) return primary;
+    return sortByBirth(byActive(week ? filterBySelectedWeek(MMR) : MMR));
   }
 
   function previousWeekOf(selected){
@@ -4638,6 +4645,22 @@ function render(){
       ], rows);
     }, exportData);
   }
+
+function mmrDeltaUnitsVsBudget(r) {
+  const units = asNum(get(r, "Units")) || 0;
+  let occ = asNum(get(r, "OccupancyPercent"));
+  let bOcc = asNum(get(r, "BudgetedOccupancyPercentageCurrentMonth"));
+  if (!isFinite(occ)) occ = 0;
+  if (!isFinite(bOcc)) bOcc = 0;
+  const occDec = occ > -1 && occ < 1 && occ !== 0 ? occ : (occ === 0 ? 0 : occ / 100);
+  const bDec = bOcc > -1 && bOcc < 1 && bOcc !== 0 ? bOcc : (bOcc === 0 ? 0 : bOcc / 100);
+  const actualU = Math.round(units * occDec);
+  const budgetU = Math.round(units * bDec);
+  let d = actualU - budgetU;
+  if (actualU === 0 || occ === 0) d = 0;
+  return d;
+}
+
 function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
   // Respect split-KPI clicks; default to global hint if no explicit arg
   const chosen = (filterLabel === "__USE_GLOBAL__" ? (window.__splitKPIFilter || "All") : filterLabel);
@@ -4700,12 +4723,14 @@ function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
   const wBOcc = wAvgUnits("BudgetedOccupancyPercentageCurrentMonth");
   const wLea  = wAvgUnits("CurrentLeasedPercent");
   const wBLea = wAvgUnits("BudgetedLeasedPercentageCurrentMonth");
+  const sumDeltaUnits = rows.reduce((s, r) => s + mmrDeltaUnitsVsBudget(r), 0);
 
   const totals = {
     "Construction Status": "Total",
     "Property": "",
     "Current Occupancy %": fmtPctSmart(wOcc),
     "Budgeted Occupancy %": fmtPctSmart(wBOcc),
+    "Δ (Units)": fmtInt(sumDeltaUnits),
     "Current Leased %": fmtPctSmart(wLea),
     "Budgeted Leased %": fmtPctSmart(wBLea)
   };
@@ -4717,6 +4742,7 @@ function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
     "Week": currentWeek || "Current Week",
     "Current Occupancy %": asNum(get(r, "OccupancyPercent")),
     "Budgeted Occupancy %": asNum(get(r, "BudgetedOccupancyPercentageCurrentMonth")),
+    "Δ (Units)": mmrDeltaUnitsVsBudget(r),
     "Current Leased %": asNum(get(r, "CurrentLeasedPercent")),
     "Budgeted Leased %": asNum(get(r, "BudgetedLeasedPercentageCurrentMonth")),
     "+4w Projected Occupancy %": projByProp[get(r, "Property")] ? projByProp[get(r, "Property")].p4 : NaN,
@@ -4733,6 +4759,7 @@ function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
       { label: "Property",            key: "Property" },
       { label: "Current Occupancy %", value: r => fmtPctSmart(asNum(get(r, "OccupancyPercent"))),                        class: "num" },
       { label: "Budgeted Occupancy %",value: r => fmtPctSmart(asNum(get(r, "BudgetedOccupancyPercentageCurrentMonth"))), class: "num" },
+      { label: "Δ (Units)", value: r => fmtInt(mmrDeltaUnitsVsBudget(r)), class: "num" },
       { label: "+4w Projected Occupancy %", value: r => fmtPctSmart(projByProp[get(r, "Property")] ? projByProp[get(r, "Property")].p4 : NaN), class: "num" },
       { label: "+8w Projected Occupancy %", value: r => fmtPctSmart(projByProp[get(r, "Property")] ? projByProp[get(r, "Property")].p8 : NaN), class: "num" },
       { label: "Current Leased %",    value: r => fmtPctSmart(asNum(get(r, "CurrentLeasedPercent"))),                    class: "num" },
