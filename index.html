@@ -8,13 +8,14 @@
   <script>(function(){var w=window,d=document.documentElement;var m=w.matchMedia&&w.matchMedia('(max-width:768px)').matches||('ontouchstart'in w)||(w.innerWidth<=768);d.setAttribute('data-mobile',m?'true':'false');w.IS_MOBILE=m;})();</script>
   <link rel="stylesheet" href="app.css"/>
 
-  <!-- Domo utils: on localhost use stub (avoids SES/getAttribute errors). In Domo, load real SDK. -->
+  <!-- Domo SDK: load ryuu.js for http(s) (Domo dashboard + domo dev on localhost). Stub only for file:// preview. -->
   <script>
     (function(){
-      var isLocal = typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      if (isLocal) {
+      var proto = typeof window !== 'undefined' && window.location && window.location.protocol;
+      var isFile = proto === 'file:';
+      if (isFile) {
         window.domo = {
-          get: function(){ return Promise.reject(new Error('Monday Morning Report requires Domo. Open this app from your Domo dashboard.')); }
+          get: function(){ return Promise.reject(new Error('Open this app with domo dev (http://localhost:3000) or from the Domo dashboard — not as a local file.')); }
         };
       } else {
         document.write('<script src="https://unpkg.com/ryuu.js@4.6.0/dist/domo.js" integrity="sha384-YYsd9wQ+wDlUWhvpfGdptxmNYIqBC+52oJtWgPKJadbs3sSFTY/+ZotPbEHTTRWz" crossorigin="anonymous"><\/script>');
