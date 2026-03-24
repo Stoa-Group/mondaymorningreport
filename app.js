@@ -4210,19 +4210,32 @@ function reviewsTable(reviews, property, rating, category){
         }
       });
       console.log(`[PropertyList] Loaded ${Object.keys(map).length} statuses, ${canonical.length} MMR-email properties`);
-      return { statusMap: map, canonicalProperties: canonical };
+      return { statusMap: map, canonicalProperties: canonical, propertyListRows: json.data || [] };
     } catch (e) {
       console.warn("[PropertyList] Could not fetch DB statuses, using Domo Status as-is:", e);
-      return { statusMap: {}, canonicalProperties: [] };
+      return { statusMap: {}, canonicalProperties: [], propertyListRows: [] };
     }
+  }
+
+  /** Match Domo Property strings to DB keys despite minor spelling / "The" / spacing differences. */
+  function propLooseKey(s) {
+    return (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
   function overlayDbStatus(rows, statusMap) {
     if (!statusMap || Object.keys(statusMap).length === 0) return rows;
-    rows.forEach(r => {
+    const looseToStatus = {};
+    Object.keys(statusMap).forEach((k) => {
+      const lk = propLooseKey(k);
+      if (lk) looseToStatus[lk] = statusMap[k];
+    });
+    rows.forEach((r) => {
       const prop = (get(r, "Property") || "").toString().trim().toLowerCase();
-      if (prop && statusMap[prop]) {
-        r.Status = statusMap[prop];
+      if (!prop) return;
+      if (statusMap[prop]) r.Status = statusMap[prop];
+      else {
+        const lk = propLooseKey(prop);
+        if (lk && looseToStatus[lk]) r.Status = looseToStatus[lk];
       }
     });
     return rows;
@@ -4232,6 +4245,10 @@ function reviewsTable(reviews, property, rating, category){
   let MMR=[], REV=[], weekOptions=[], selectedWeek=null;
   /** Lowercased property name -> Status from DB (same keys as email report). */
   let propertyStatusMap = {};
+  /** Lease-Up / Stabilized rows from property-list (authoritative count). */
+  let propertyCanonicalActive = [];
+  /** Raw rows from property-list API (for stub rows when Domo has no match). */
+  let propertyListRows = [];
 
   async function init(){
     const [mmrRaw, revRaw, plResult] = await Promise.all([
@@ -4240,6 +4257,8 @@ function reviewsTable(reviews, property, rating, category){
       fetchPropertyListStatus()
     ]);
     propertyStatusMap = plResult.statusMap || plResult || {};
+    propertyCanonicalActive = plResult.canonicalProperties || [];
+    propertyListRows = plResult.propertyListRows || [];
     MMR = overlayDbStatus(mmrRaw, propertyStatusMap);
     REV = revRaw;
 
@@ -4318,44 +4337,83 @@ function reviewsTable(reviews, property, rating, category){
    * overlaid MMR row for that property (any week) and align WeekStart to the picker.
    */
   function augmentMmrLatestWithDbActiveProperties(mmrLatest) {
-    if (!propertyStatusMap || Object.keys(propertyStatusMap).length === 0) return mmrLatest;
-    const norm = (p) => (p || "").toString().trim().toLowerCase();
-    const present = new Set(mmrLatest.map((r) => norm(get(r, "Property"))));
+    if (!propertyCanonicalActive || !propertyCanonicalActive.length) return mmrLatest;
+    const present = new Set(mmrLatest.map((r) => propLooseKey(get(r, "Property"))));
     const merged = mmrLatest.slice();
     const weekStr = selectedWeek ? selectedWeek.toString().slice(0, 10) : null;
 
-    Object.keys(propertyStatusMap).forEach((key) => {
-      const st = (propertyStatusMap[key] || "").trim().toLowerCase();
-      if (st !== "lease-up" && st !== "stabilized") return;
-      if (present.has(key)) return;
-
-      const candidates = MMR.filter((r) => norm(get(r, "Property")) === key);
-      const activeCands = byActive(candidates);
-      if (!activeCands.length) return;
-
+    function pickLatestWeekRow(rows) {
       let pick = weekStr
-        ? activeCands.find((r) => (get(r, "WeekStart") || "").toString().slice(0, 10) === weekStr)
+        ? rows.find((r) => (get(r, "WeekStart") || "").toString().slice(0, 10) === weekStr)
         : null;
       if (!pick) {
-        pick = activeCands.slice().sort((a, b) => {
+        pick = rows.slice().sort((a, b) => {
           const wa = new Date(get(a, "WeekStart") || 0);
           const wb = new Date(get(b, "WeekStart") || 0);
           return wb - wa;
         })[0];
       }
-      if (!pick) return;
+      return pick;
+    }
 
-      const clone = { ...pick };
-      if (weekStr && (get(clone, "WeekStart") || "").toString().slice(0, 10) !== weekStr) {
-        const ws = get(clone, "WeekStart");
-        if (ws != null && `${ws}`.length >= 10) {
-          clone.WeekStart = weekStr + `${ws}`.slice(10);
-        } else {
-          clone.WeekStart = weekStr;
+    propertyCanonicalActive.forEach(({ Property: displayName, Status: dbStatus }) => {
+      const lk = propLooseKey(displayName);
+      if (!lk || present.has(lk)) return;
+
+      const candidates = MMR.filter((r) => propLooseKey(get(r, "Property")) === lk);
+      const activeCands = byActive(candidates);
+
+      if (activeCands.length) {
+        const pick = pickLatestWeekRow(activeCands);
+        if (!pick) return;
+        const clone = { ...pick };
+        if (weekStr && (get(clone, "WeekStart") || "").toString().slice(0, 10) !== weekStr) {
+          const ws = get(clone, "WeekStart");
+          if (ws != null && `${ws}`.length >= 10) {
+            clone.WeekStart = weekStr + `${ws}`.slice(10);
+          } else {
+            clone.WeekStart = weekStr;
+          }
         }
+        merged.push(clone);
+        present.add(lk);
+        return;
       }
-      merged.push(clone);
-      present.add(key);
+
+      if (candidates.length) {
+        const pick = pickLatestWeekRow(candidates);
+        if (!pick) return;
+        const clone = { ...pick };
+        clone.Status = dbStatus;
+        if (weekStr && (get(clone, "WeekStart") || "").toString().slice(0, 10) !== weekStr) {
+          const ws = get(clone, "WeekStart");
+          if (ws != null && `${ws}`.length >= 10) {
+            clone.WeekStart = weekStr + `${ws}`.slice(10);
+          } else {
+            clone.WeekStart = weekStr;
+          }
+        }
+        merged.push(clone);
+        present.add(lk);
+        return;
+      }
+
+      const raw = propertyListRows.find((p) => propLooseKey(p.Property) === lk);
+      if (!raw) return;
+      merged.push({
+        Property: (raw.Property || "").toString().trim(),
+        Status: dbStatus,
+        Units: raw.Units,
+        Region: raw.Region,
+        City: raw.City,
+        State: raw.State,
+        FullAddress: raw["Full Address"] ?? raw.FullAddress,
+        BirthOrder: raw["Birth Order"] ?? raw.BirthOrder,
+        Latitude: raw["Latitude "] ?? raw.Latitude,
+        Longitude: raw.Longitude,
+        WeekStart: weekStr || (MMR[0] ? (get(MMR[0], "WeekStart") || "").toString().slice(0, 10) : ""),
+      });
+      present.add(lk);
     });
 
     return sortByBirth(merged);
