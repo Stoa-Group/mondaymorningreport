@@ -4206,8 +4206,7 @@ function reviewsTable(reviews, property, rating, category){
     rows.forEach(r => {
       const prop = (get(r, "Property") || "").toString().trim().toLowerCase();
       if (prop && statusMap[prop]) {
-        const statusKey = Object.keys(r).find(k => k === "Status" || k.toLowerCase() === "status");
-        if (statusKey) r[statusKey] = statusMap[prop];
+        r.Status = statusMap[prop];
       }
     });
     return rows;
