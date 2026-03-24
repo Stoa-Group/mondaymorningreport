@@ -93,11 +93,20 @@
     return domo.get(`/data/v2/${encodeURIComponent(alias)}?${qs.toString()}`);
   }
 
+  /** Normalize Status for comparisons (Domo/API sometimes use special hyphens or spacing). */
+  function normalizeStatusStr(s) {
+    let t = (s || "").toString().trim().toLowerCase();
+    t = t.replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, "-");
+    t = t.replace(/\s+/g, " ");
+    return t;
+  }
+  function isLeaseUpOrStabilizedStatus(s) {
+    const n = normalizeStatusStr(s);
+    return n === "lease-up" || n === "stabilized";
+  }
+
   function byActive(rows){
-    return rows.filter(r => {
-      const s = (get(r,"Status")||"").toString().trim().toLowerCase();
-      return s === 'lease-up' || s === 'stabilized';
-    });
+    return rows.filter(r => isLeaseUpOrStabilizedStatus(get(r,"Status")));
   }
   function constKey(r){ return get(r,"ConstructionStatus")!==undefined ? "ConstructionStatus" : "LatestConstructionStatus"; }
   function byConst(rows, label){
@@ -4193,7 +4202,7 @@ function reviewsTable(reviews, property, rating, category){
 
   async function fetchPropertyListStatus() {
     try {
-      const res = await fetch(PROPERTY_LIST_API);
+      const res = await fetch(PROPERTY_LIST_API, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const map = {};
@@ -4203,39 +4212,42 @@ function reviewsTable(reviews, property, rating, category){
         const status = (p.Status || "").trim();
         if (name) {
           map[name] = status;
-          const s = status.toLowerCase();
-          if (s === 'lease-up' || s === 'stabilized') {
+          if (isLeaseUpOrStabilizedStatus(status)) {
             canonical.push({ Property: (p.Property || "").trim(), Status: status });
           }
         }
       });
       console.log(`[PropertyList] Loaded ${Object.keys(map).length} statuses, ${canonical.length} MMR-email properties`);
-      return { statusMap: map, canonicalProperties: canonical, propertyListRows: json.data || [] };
+      return { statusMap: map, canonicalProperties: canonical, propertyListRows: json.data || [], fetchOk: true };
     } catch (e) {
       console.warn("[PropertyList] Could not fetch DB statuses, using Domo Status as-is:", e);
-      return { statusMap: {}, canonicalProperties: [], propertyListRows: [] };
+      return { statusMap: {}, canonicalProperties: [], propertyListRows: [], fetchOk: false };
     }
   }
 
-  /** Match Domo Property strings to DB keys despite minor spelling / "The" / spacing differences. */
-  function propLooseKey(s) {
-    return (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  /**
+   * Same property across Domo vs DB despite "The " prefix and punctuation (share one logical key).
+   */
+  function propEntityKey(s) {
+    let k = (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (k.startsWith("the")) k = k.slice(3);
+    return k;
   }
 
   function overlayDbStatus(rows, statusMap) {
     if (!statusMap || Object.keys(statusMap).length === 0) return rows;
-    const looseToStatus = {};
+    const entityToStatus = {};
     Object.keys(statusMap).forEach((k) => {
-      const lk = propLooseKey(k);
-      if (lk) looseToStatus[lk] = statusMap[k];
+      const ek = propEntityKey(k);
+      if (ek) entityToStatus[ek] = statusMap[k];
     });
     rows.forEach((r) => {
       const prop = (get(r, "Property") || "").toString().trim().toLowerCase();
       if (!prop) return;
       if (statusMap[prop]) r.Status = statusMap[prop];
       else {
-        const lk = propLooseKey(prop);
-        if (lk && looseToStatus[lk]) r.Status = looseToStatus[lk];
+        const ek = propEntityKey(prop);
+        if (ek && entityToStatus[ek]) r.Status = entityToStatus[ek];
       }
     });
     return rows;
@@ -4249,6 +4261,8 @@ function reviewsTable(reviews, property, rating, category){
   let propertyCanonicalActive = [];
   /** Raw rows from property-list API (for stub rows when Domo has no match). */
   let propertyListRows = [];
+  /** False when fetch to stoagroupDB failed (Domo iframe / network); overlay/augment need API data. */
+  let propertyListFetchOk = false;
 
   async function init(){
     const [mmrRaw, revRaw, plResult] = await Promise.all([
@@ -4259,6 +4273,7 @@ function reviewsTable(reviews, property, rating, category){
     propertyStatusMap = plResult.statusMap || plResult || {};
     propertyCanonicalActive = plResult.canonicalProperties || [];
     propertyListRows = plResult.propertyListRows || [];
+    propertyListFetchOk = plResult.fetchOk !== false;
     MMR = overlayDbStatus(mmrRaw, propertyStatusMap);
     REV = revRaw;
 
@@ -4285,10 +4300,7 @@ function reviewsTable(reviews, property, rating, category){
    */
   function filterMmrLikeEmailReport(allRows, weekPrefix) {
     if (!allRows || !allRows.length) return [];
-    let rows = allRows.filter(r => {
-      const st = (get(r, "Status") || "").toString().trim().toLowerCase();
-      return st === "lease-up" || st === "stabilized";
-    });
+    let rows = allRows.filter(r => isLeaseUpOrStabilizedStatus(get(r, "Status")));
     if (weekPrefix) {
       const pfx = weekPrefix.toString().slice(0, 10);
       rows = rows.filter(r => (get(r, "WeekStart") || "").toString().slice(0, 10) === pfx);
@@ -4336,9 +4348,34 @@ function reviewsTable(reviews, property, rating, category){
    * filter drops it and Active Properties under-counts vs occupancy. Pull the latest
    * overlaid MMR row for that property (any week) and align WeekStart to the picker.
    */
+  function dedupeRowsByEntityKeyPreferActive(rows) {
+    const byEk = new Map();
+    rows.forEach((r) => {
+      const ek = propEntityKey(get(r, "Property"));
+      if (!ek) return;
+      const prev = byEk.get(ek);
+      if (!prev) {
+        byEk.set(ek, r);
+        return;
+      }
+      const aPrev = isLeaseUpOrStabilizedStatus(get(prev, "Status"));
+      const aCur = isLeaseUpOrStabilizedStatus(get(r, "Status"));
+      if (aCur && !aPrev) {
+        byEk.set(ek, r);
+        return;
+      }
+      if (!aCur && aPrev) return;
+      const wP = new Date(get(prev, "WeekStart") || 0);
+      const wC = new Date(get(r, "WeekStart") || 0);
+      if (wC >= wP) byEk.set(ek, r);
+    });
+    return Array.from(byEk.values());
+  }
+
   function augmentMmrLatestWithDbActiveProperties(mmrLatest) {
     if (!propertyCanonicalActive || !propertyCanonicalActive.length) return mmrLatest;
-    const present = new Set(mmrLatest.map((r) => propLooseKey(get(r, "Property"))));
+    /** Only skip when we already have an *active* row for this property (DB-backed status). */
+    const presentActive = new Set(byActive(mmrLatest).map((r) => propEntityKey(get(r, "Property"))));
     const merged = mmrLatest.slice();
     const weekStr = selectedWeek ? selectedWeek.toString().slice(0, 10) : null;
 
@@ -4357,10 +4394,10 @@ function reviewsTable(reviews, property, rating, category){
     }
 
     propertyCanonicalActive.forEach(({ Property: displayName, Status: dbStatus }) => {
-      const lk = propLooseKey(displayName);
-      if (!lk || present.has(lk)) return;
+      const ek = propEntityKey(displayName);
+      if (!ek || presentActive.has(ek)) return;
 
-      const candidates = MMR.filter((r) => propLooseKey(get(r, "Property")) === lk);
+      const candidates = MMR.filter((r) => propEntityKey(get(r, "Property")) === ek);
       const activeCands = byActive(candidates);
 
       if (activeCands.length) {
@@ -4376,7 +4413,7 @@ function reviewsTable(reviews, property, rating, category){
           }
         }
         merged.push(clone);
-        present.add(lk);
+        presentActive.add(ek);
         return;
       }
 
@@ -4394,11 +4431,11 @@ function reviewsTable(reviews, property, rating, category){
           }
         }
         merged.push(clone);
-        present.add(lk);
+        presentActive.add(ek);
         return;
       }
 
-      const raw = propertyListRows.find((p) => propLooseKey(p.Property) === lk);
+      const raw = propertyListRows.find((p) => propEntityKey(p.Property) === ek);
       if (!raw) return;
       merged.push({
         Property: (raw.Property || "").toString().trim(),
@@ -4413,10 +4450,10 @@ function reviewsTable(reviews, property, rating, category){
         Longitude: raw.Longitude,
         WeekStart: weekStr || (MMR[0] ? (get(MMR[0], "WeekStart") || "").toString().slice(0, 10) : ""),
       });
-      present.add(lk);
+      presentActive.add(ek);
     });
 
-    return sortByBirth(merged);
+    return sortByBirth(dedupeRowsByEntityKeyPreferActive(merged));
   }
 
   function previousWeekOf(selected){
@@ -4454,7 +4491,11 @@ function reviewsTable(reviews, property, rating, category){
 
 function render(){
   const latestDate = MMR.map(r=>parseDateLike(get(r,"LatestDate"))).filter(Boolean).sort((a,b)=>b-a)[0];
-  $("#last-updated").textContent = latestDate ? `Data as of ${latestDate.toLocaleDateString()} · WeekStart ${selectedWeek || "—"}` : `WeekStart ${selectedWeek || "—"}`;
+  let sub = latestDate ? `Data as of ${latestDate.toLocaleDateString()} · WeekStart ${selectedWeek || "—"}` : `WeekStart ${selectedWeek || "—"}`;
+  if (!propertyListFetchOk) {
+    sub += " · Property list API unreachable (active count may be low until network allows stoagroupDB)";
+  }
+  $("#last-updated").textContent = sub;
 
   const mmrLatest = augmentMmrLatestWithDbActiveProperties(buildRowsForDisplay());
   const prevWeek = previousWeekOf(selectedWeek);
@@ -4465,7 +4506,7 @@ function render(){
   // ---- KPIs ----
   $("#kpi-grid").innerHTML = "";
 
-  const countProps = new Set(active.map(r=>get(r,"Property"))).size;
+  const countProps = new Set(active.map((r) => propEntityKey(get(r, "Property")))).size;
   const totalUnits = sum(active,"Units");
 
   // Delinquent with trend vs previous week
@@ -4820,8 +4861,7 @@ function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
 
   // If user chose "Under Construction", additionally gate to Lease-Up or Stabilized
   if ((chosen || "").toLowerCase().includes("under")) {
-    const okStatuses = new Set(["lease-up", "stabilized"]);
-    rows = rows.filter(r => okStatuses.has((get(r, "Status") || "").toString().toLowerCase()));
+    rows = rows.filter((r) => isLeaseUpOrStabilizedStatus(get(r, "Status")));
   }
 
   rows = sortByBirth(rows);
