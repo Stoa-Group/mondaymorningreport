@@ -105,6 +105,20 @@
     return rows.filter(r => (get(r,constKey(r))||"").toString().toLowerCase().includes(label.toLowerCase()));
   }
   function sortByBirth(rows){ return rows.slice().sort((a,b)=>(asNum(get(a,"BirthOrder"))||0)-(asNum(get(b,"BirthOrder"))||0)); }
+  /** Order property name strings by BirthOrder using rows that carry BirthOrder (same as tables/charts). */
+  function sortPropertyNamesByBirth(names, rows) {
+    if (!names || !names.length) return [];
+    const set = new Set(names);
+    const out = [];
+    sortByBirth(rows).forEach(r => {
+      const p = get(r, "Property");
+      if (!p || !set.has(p)) return;
+      set.delete(p);
+      out.push(p);
+    });
+    Array.from(set).sort((a, b) => a.localeCompare(b)).forEach(p => out.push(p));
+    return out;
+  }
   const sum = (rows,key)=> rows.reduce((a,r)=>a+(isFinite(asNum(get(r,key)))?asNum(get(r,key)):0),0);
   function weightedAvg(rows, key){
     let num=0, den=0;
@@ -1752,7 +1766,7 @@ function t12Bars(rowsLatest, filter = "All") {
       }
     });
     
-    const labels = Object.keys(byProperty).sort();
+    const labels = sortPropertyNamesByBirth(Object.keys(byProperty), rows);
     const ren = labels.map(prop => byProperty[prop].ren);
     const exp = labels.map(prop => byProperty[prop].exp);
     
@@ -3353,7 +3367,9 @@ function incomeVsBudget(rowsLatest, filter = "All") {
   function propertySeries(selectedProps, from, to) {
     const weeks = weeksInRange(from, to);
     const interval = pickInterval(from, to);
-    const props = selectedProps.length > 0 ? selectedProps : distinct(rowsAll.map(r => get(r, "Property"))).filter(Boolean).sort();
+    const props = selectedProps.length > 0
+      ? sortPropertyNamesByBirth(selectedProps, rowsAll)
+      : sortPropertyNamesByBirth(distinct(rowsAll.map(r => get(r, "Property"))).filter(Boolean), rowsAll);
     const useUnits = state.unitsMode;
 
     if (interval === "week") {
@@ -3425,7 +3441,7 @@ function incomeVsBudget(rowsLatest, filter = "All") {
     tools?.querySelectorAll("select[data-role='props'],select[data-role='compare-props'],select[data-role='timeline'],select[data-role='timeline-individual'],select[data-role='units-toggle'],div[data-role='checkbox-container'],div[data-role='compare-tags']").forEach(n => n.remove());
 
     // Get all available properties
-    const allProps = distinct(rowsAll.map(r => get(r, "Property"))).filter(Boolean).sort();
+    const allProps = sortPropertyNamesByBirth(distinct(rowsAll.map(r => get(r, "Property"))).filter(Boolean), rowsAll);
     
     // Property dropdown (single select)
     const selProps = document.createElement("select");
@@ -4498,8 +4514,8 @@ function render(){
   const grid3=document.createElement("div"); grid3.className="grid-2"; timelines.appendChild(grid3);
   const tOcc=createPanel(grid3, "Occupancy % — Actual vs Budgeted", false);
   const tLea=createPanel(grid3, "Leased % — Actual vs Budgeted", false);
-  timelineActualVsBudget(byActive(MMR), "OccupancyPercent", "BudgetedOccupancyPercentageCurrentMonth", "Occupancy %", { allowUnitsToggle: true })(tOcc.body);
-  timelineActualVsBudget(byActive(MMR), "CurrentLeasedPercent", "BudgetedLeasedPercentageCurrentMonth", "Leased %", { allowUnitsToggle: true })(tLea.body);
+  timelineActualVsBudget(sortByBirth(byActive(MMR)), "OccupancyPercent", "BudgetedOccupancyPercentageCurrentMonth", "Occupancy %", { allowUnitsToggle: true })(tOcc.body);
+  timelineActualVsBudget(sortByBirth(byActive(MMR)), "CurrentLeasedPercent", "BudgetedLeasedPercentageCurrentMonth", "Leased %", { allowUnitsToggle: true })(tLea.body);
 
   // Reviews
   const reviews=$("#tab-reviews"); reviews.innerHTML="";
