@@ -4272,6 +4272,7 @@ function reviewsTable(reviews, property, rating, category){
       rows = rows.filter(r => (get(r, "WeekStart") || "").toString().slice(0, 10) === pfx);
     }
     const propertyMap = {};
+    // Prefer latest ReportDate per property; do not drop rows with missing ReportDate (fixes under-count when one property has no date on that week's row).
     rows.forEach(row => {
       const property = (get(row, "Property") || "").toString().trim();
       if (!property) return;
@@ -4282,6 +4283,11 @@ function reviewsTable(reviews, property, rating, category){
       if (!propertyMap[property] || dateValue > propertyMap[property].maxDate) {
         propertyMap[property] = { maxDate: dateValue, row: row };
       }
+    });
+    rows.forEach(row => {
+      const property = (get(row, "Property") || "").toString().trim();
+      if (!property || propertyMap[property]) return;
+      propertyMap[property] = { maxDate: new Date(0), row: row };
     });
     let out = Object.values(propertyMap).map(o => o.row);
     if (out.length === 0) {
