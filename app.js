@@ -114,6 +114,27 @@
     return rows.filter(r => (get(r,constKey(r))||"").toString().toLowerCase().includes(label.toLowerCase()));
   }
   function sortByBirth(rows){ return rows.slice().sort((a,b)=>(asNum(get(a,"BirthOrder"))||0)-(asNum(get(b,"BirthOrder"))||0)); }
+  /** Same property across Domo vs DB despite "The " prefix and punctuation (shared with property-list logic). */
+  function propEntityKey(s) {
+    let k = (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (k.startsWith("the")) k = k.slice(3);
+    return k;
+  }
+  /** Filled from MMR + property-list API in init; used when property names are not in `rows`. */
+  let birthOrderByEntityKey = new Map();
+  function rebuildBirthOrderIndex() {
+    birthOrderByEntityKey = new Map();
+    const setOrder = (ek, b) => {
+      const n = asNum(b);
+      if (!ek || !isFinite(n)) return;
+      if (!birthOrderByEntityKey.has(ek)) birthOrderByEntityKey.set(ek, n);
+    };
+    (MMR || []).forEach((r) => setOrder(propEntityKey(get(r, "Property")), get(r, "BirthOrder")));
+    (propertyListRows || []).forEach((raw) => {
+      const bo = raw["Birth Order"] ?? raw.BirthOrder;
+      setOrder(propEntityKey(raw.Property), bo);
+    });
+  }
   /** Order property name strings by BirthOrder using rows that carry BirthOrder (same as tables/charts). */
   function sortPropertyNamesByBirth(names, rows) {
     if (!names || !names.length) return [];
@@ -125,7 +146,16 @@
       set.delete(p);
       out.push(p);
     });
-    Array.from(set).sort((a, b) => a.localeCompare(b)).forEach(p => out.push(p));
+    Array.from(set).sort((a, b) => {
+      const ka = propEntityKey(a);
+      const kb = propEntityKey(b);
+      const ba = birthOrderByEntityKey.get(ka);
+      const bb = birthOrderByEntityKey.get(kb);
+      if (ba != null && bb != null && ba !== bb) return ba - bb;
+      if (ba != null && bb == null) return -1;
+      if (ba == null && bb != null) return 1;
+      return a.localeCompare(b);
+    }).forEach(p => out.push(p));
     return out;
   }
   const sum = (rows,key)=> rows.reduce((a,r)=>a+(isFinite(asNum(get(r,key)))?asNum(get(r,key)):0),0);
@@ -3945,11 +3975,7 @@ function reviewsAvgChart(reviews){
     (byProp[p] ||= []).push(rat);
   });
 
-  const labels = Object.keys(byProp).sort((a, b) => {
-    const avga = byProp[a].reduce((x, y) => x + y, 0) / byProp[a].length;
-    const avgb = byProp[b].reduce((x, y) => x + y, 0) / byProp[b].length;
-    return avgb - avga;
-  });
+  const labels = sortPropertyNamesByBirth(Object.keys(byProp), MMR);
   const avgs = labels.map(p => byProp[p].reduce((x, y) => x + y, 0) / byProp[p].length);
 
   return host => {
@@ -4225,15 +4251,6 @@ function reviewsTable(reviews, property, rating, category){
     }
   }
 
-  /**
-   * Same property across Domo vs DB despite "The " prefix and punctuation (share one logical key).
-   */
-  function propEntityKey(s) {
-    let k = (s || "").toString().trim().toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (k.startsWith("the")) k = k.slice(3);
-    return k;
-  }
-
   function overlayDbStatus(rows, statusMap) {
     if (!statusMap || Object.keys(statusMap).length === 0) return rows;
     const entityToStatus = {};
@@ -4275,6 +4292,7 @@ function reviewsTable(reviews, property, rating, category){
     propertyListRows = plResult.propertyListRows || [];
     propertyListFetchOk = plResult.fetchOk !== false;
     MMR = overlayDbStatus(mmrRaw, propertyStatusMap);
+    rebuildBirthOrderIndex();
     REV = revRaw;
 
     // WeekStart select
