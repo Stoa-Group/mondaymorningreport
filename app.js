@@ -4230,6 +4230,8 @@ function reviewsTable(reviews, property, rating, category){
 
   // MAIN
   let MMR=[], REV=[], weekOptions=[], selectedWeek=null;
+  /** Lowercased property name -> Status from DB (same keys as email report). */
+  let propertyStatusMap = {};
 
   async function init(){
     const [mmrRaw, revRaw, plResult] = await Promise.all([
@@ -4237,7 +4239,8 @@ function reviewsTable(reviews, property, rating, category){
       fetchAlias(ALIASES.REV, FIELDS.REV).catch(()=>[]),
       fetchPropertyListStatus()
     ]);
-    MMR = overlayDbStatus(mmrRaw, plResult.statusMap || plResult);
+    propertyStatusMap = plResult.statusMap || plResult || {};
+    MMR = overlayDbStatus(mmrRaw, propertyStatusMap);
     REV = revRaw;
 
     // WeekStart select
@@ -4309,6 +4312,55 @@ function reviewsTable(reviews, property, rating, category){
     return sortByBirth(byActive(week ? filterBySelectedWeek(MMR) : MMR));
   }
 
+  /**
+   * If Domo has no row for a DB-active property in the selected week, the email-style
+   * filter drops it and Active Properties under-counts vs occupancy. Pull the latest
+   * overlaid MMR row for that property (any week) and align WeekStart to the picker.
+   */
+  function augmentMmrLatestWithDbActiveProperties(mmrLatest) {
+    if (!propertyStatusMap || Object.keys(propertyStatusMap).length === 0) return mmrLatest;
+    const norm = (p) => (p || "").toString().trim().toLowerCase();
+    const present = new Set(mmrLatest.map((r) => norm(get(r, "Property"))));
+    const merged = mmrLatest.slice();
+    const weekStr = selectedWeek ? selectedWeek.toString().slice(0, 10) : null;
+
+    Object.keys(propertyStatusMap).forEach((key) => {
+      const st = (propertyStatusMap[key] || "").trim().toLowerCase();
+      if (st !== "lease-up" && st !== "stabilized") return;
+      if (present.has(key)) return;
+
+      const candidates = MMR.filter((r) => norm(get(r, "Property")) === key);
+      const activeCands = byActive(candidates);
+      if (!activeCands.length) return;
+
+      let pick = weekStr
+        ? activeCands.find((r) => (get(r, "WeekStart") || "").toString().slice(0, 10) === weekStr)
+        : null;
+      if (!pick) {
+        pick = activeCands.slice().sort((a, b) => {
+          const wa = new Date(get(a, "WeekStart") || 0);
+          const wb = new Date(get(b, "WeekStart") || 0);
+          return wb - wa;
+        })[0];
+      }
+      if (!pick) return;
+
+      const clone = { ...pick };
+      if (weekStr && (get(clone, "WeekStart") || "").toString().slice(0, 10) !== weekStr) {
+        const ws = get(clone, "WeekStart");
+        if (ws != null && `${ws}`.length >= 10) {
+          clone.WeekStart = weekStr + `${ws}`.slice(10);
+        } else {
+          clone.WeekStart = weekStr;
+        }
+      }
+      merged.push(clone);
+      present.add(key);
+    });
+
+    return sortByBirth(merged);
+  }
+
   function previousWeekOf(selected){
     if (!selected) return null;
     const idx = weekOptions.indexOf(selected);
@@ -4346,7 +4398,7 @@ function render(){
   const latestDate = MMR.map(r=>parseDateLike(get(r,"LatestDate"))).filter(Boolean).sort((a,b)=>b-a)[0];
   $("#last-updated").textContent = latestDate ? `Data as of ${latestDate.toLocaleDateString()} · WeekStart ${selectedWeek || "—"}` : `WeekStart ${selectedWeek || "—"}`;
 
-  const mmrLatest = buildRowsForDisplay();
+  const mmrLatest = augmentMmrLatestWithDbActiveProperties(buildRowsForDisplay());
   const prevWeek = previousWeekOf(selectedWeek);
   const mmrPrev  = prevWeek ? MMR.filter(r=>(get(r,"WeekStart")||"").toString().startsWith(prevWeek)) : [];
 
