@@ -19,8 +19,10 @@
   const FIELDS = {
     MMR: [
       "Property","Region","City","State","Status","ConstructionStatus","LatestConstructionStatus",
-      "Units","InServiceUnits",
+      "Units","TotalUnits","InServiceUnits",
       "OccupancyPercent","CurrentLeasedPercent",
+      "OccUnits",
+      "BudgetedOccupancyCurrentMonth",
       "BudgetedOccupancyPercentageCurrentMonth","BudgetedLeasedPercentageCurrentMonth",
       "MI","MO","NetLsd","Applied","Denied","ReturnVisitCount","1stVisit",
       "T12LeasesExpired","T12LeasesRenewed",
@@ -4837,9 +4839,16 @@ function render(){
     }, exportData);
   }
 
-/** Spot Δ units vs budget from this row’s Occ % and Budget Occ % (matches typical PM spreadsheet). Not EOM/projected delta from Leasing Hub / DailyPropertyMetrics. */
+/** Δ units vs budget: prefer MMR integer columns Occ Units − Budgeted Occupancy (Current Month), matching property-management workbooks. Falls back to rounded % × units when counts are missing. */
 function mmrDeltaUnitsVsBudget(r) {
-  const units = asNum(get(r, "Units")) || 0;
+  const occUnitsRaw = get(r, "OccUnits");
+  const budgetUnitsRaw = get(r, "BudgetedOccupancyCurrentMonth");
+  const ou = asNum(occUnitsRaw);
+  const bu = asNum(budgetUnitsRaw);
+  if (occUnitsRaw != null && occUnitsRaw !== "" && isFinite(ou) && budgetUnitsRaw != null && budgetUnitsRaw !== "" && isFinite(bu)) {
+    return Math.round(ou) - Math.round(bu);
+  }
+  const units = asNum(get(r, "TotalUnits")) || asNum(get(r, "Units")) || asNum(get(r, "InServiceUnits")) || 0;
   let occ = asNum(get(r, "OccupancyPercent"));
   let bOcc = asNum(get(r, "BudgetedOccupancyPercentageCurrentMonth"));
   if (!isFinite(occ)) occ = 0;
@@ -4847,7 +4856,12 @@ function mmrDeltaUnitsVsBudget(r) {
   const occDec = occ > -1 && occ < 1 && occ !== 0 ? occ : (occ === 0 ? 0 : occ / 100);
   const bDec = bOcc > -1 && bOcc < 1 && bOcc !== 0 ? bOcc : (bOcc === 0 ? 0 : bOcc / 100);
   const actualU = Math.round(units * occDec);
-  const budgetU = Math.round(units * bDec);
+  let budgetU;
+  if (budgetUnitsRaw != null && budgetUnitsRaw !== "" && isFinite(bu)) {
+    budgetU = Math.round(bu);
+  } else {
+    budgetU = Math.round(units * bDec);
+  }
   let d = actualU - budgetU;
   if (actualU === 0 || occ === 0) d = 0;
   return d;
@@ -4903,7 +4917,7 @@ function occLeasedModal(rowsLatest, filterLabel = "__USE_GLOBAL__") {
   const wAvgUnits = (key) => {
     let num = 0, den = 0;
     rows.forEach(r => {
-      const w = asNum(get(r, "Units")) || 0;
+      const w = asNum(get(r, "TotalUnits")) || asNum(get(r, "Units")) || 0;
       const v = asNum(get(r, key));
       if (isFinite(v) && w > 0) { num += v * w; den += w; }
     });
