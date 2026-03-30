@@ -4272,6 +4272,51 @@ function reviewsTable(reviews, property, rating, category){
     return rows;
   }
 
+  const LEASING_SUMMARY_API = "https://stoagroupdb-ddre.onrender.com/api/leasing/dashboard/summary";
+  /** Maps from GET /api/leasing/dashboard/summary: projected occupied units at month end (today + scheduled MIs/MOs through EOM) minus month-end budgeted occupancy units. */
+  let leasingHubDeltaMaps = null;
+
+  async function fetchLeasingHubDeltas() {
+    try {
+      const res = await fetch(LEASING_SUMMARY_API, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const byLower = {};
+      const byEntity = {};
+      const bp = json.kpis && json.kpis.byProperty;
+      if (bp && typeof bp === "object") {
+        Object.keys(bp).forEach((k) => {
+          const entry = bp[k];
+          const d = entry && entry.deltaToBudget;
+          if (d != null && typeof d === "number" && isFinite(d)) {
+            const lk = (k || "").trim().toLowerCase();
+            if (lk) byLower[lk] = d;
+            const ekey = propEntityKey(k);
+            if (ekey && byEntity[ekey] === undefined) byEntity[ekey] = d;
+          }
+        });
+      }
+      console.log(`[LeasingHub] deltaToBudget (EOM projected vs budget) for ${Object.keys(byLower).length} properties`);
+      return { byLower, byEntity };
+    } catch (e) {
+      console.warn("[LeasingHub] Could not fetch dashboard summary (Domo fallback for Δ):", e);
+      return null;
+    }
+  }
+
+  function getDeltaFromLeasingHub(propertyName) {
+    if (!leasingHubDeltaMaps) return null;
+    const lower = (propertyName || "").trim().toLowerCase();
+    if (leasingHubDeltaMaps.byLower && leasingHubDeltaMaps.byLower[lower] != null) {
+      return leasingHubDeltaMaps.byLower[lower];
+    }
+    const ek = propEntityKey(propertyName);
+    if (ek && leasingHubDeltaMaps.byEntity && leasingHubDeltaMaps.byEntity[ek] != null) {
+      return leasingHubDeltaMaps.byEntity[ek];
+    }
+    return null;
+  }
+
   // MAIN
   let MMR=[], REV=[], weekOptions=[], selectedWeek=null;
   /** Lowercased property name -> Status from DB (same keys as email report). */
@@ -4284,11 +4329,13 @@ function reviewsTable(reviews, property, rating, category){
   let propertyListFetchOk = false;
 
   async function init(){
-    const [mmrRaw, revRaw, plResult] = await Promise.all([
+    const [mmrRaw, revRaw, plResult, hubMaps] = await Promise.all([
       fetchAlias(ALIASES.MMR, FIELDS.MMR),
       fetchAlias(ALIASES.REV, FIELDS.REV).catch(()=>[]),
-      fetchPropertyListStatus()
+      fetchPropertyListStatus(),
+      fetchLeasingHubDeltas()
     ]);
+    leasingHubDeltaMaps = hubMaps;
     propertyStatusMap = plResult.statusMap || plResult || {};
     propertyCanonicalActive = plResult.canonicalProperties || [];
     propertyListRows = plResult.propertyListRows || [];
@@ -4839,8 +4886,15 @@ function render(){
     }, exportData);
   }
 
-/** Δ units vs budget: prefer MMR integer columns Occ Units − Budgeted Occupancy (Current Month), matching property-management workbooks. Falls back to rounded % × units when counts are missing. */
+/**
+ * Δ units vs month-end budget: primary source is stoagroupDB (DailyPropertyMetrics) — today’s occupancy,
+ * then scheduled move-ins/move-outs through the last day of the month, compared to month-end budgeted occupancy units.
+ * Falls back to Domo Occ Units − Budgeted Occupancy (Current Month), then % × units.
+ */
 function mmrDeltaUnitsVsBudget(r) {
+  const hub = getDeltaFromLeasingHub(get(r, "Property"));
+  if (hub != null && typeof hub === "number" && isFinite(hub)) return hub;
+
   const occUnitsRaw = get(r, "OccUnits");
   const budgetUnitsRaw = get(r, "BudgetedOccupancyCurrentMonth");
   const ou = asNum(occUnitsRaw);
