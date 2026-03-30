@@ -269,6 +269,10 @@ html[data-mobile="true"] button,html[data-mobile="true"] .btn{min-height:44px}
 }
 .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .table th { background: var(--surface-2); text-align: left; color: var(--text-primary); position: sticky; top: 0; z-index: 1; font-weight: 600; }
+.table tbody tr.income-row-na td {
+  background: #fffbeb;
+  color: var(--text-primary);
+}
 .table tr:last-child td { border-bottom: none; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 

@@ -197,7 +197,8 @@
     container.innerHTML=""; container.appendChild(c);
     return c.getContext("2d");
   }
-  function renderTable(host, columns, rows, onRowClick, totals) {
+  function renderTable(host, columns, rows, onRowClick, totals, tableOptions) {
+  tableOptions = tableOptions || {};
   const t = document.createElement("table"); t.className = "table";
 
   // header
@@ -209,6 +210,8 @@
   const tb = document.createElement("tbody");
   rows.forEach(r => {
     const tr = document.createElement("tr");
+    const rowCls = typeof tableOptions.rowClass === "function" ? tableOptions.rowClass(r) : "";
+    if (rowCls) tr.className = rowCls;
     columns.forEach(c => {
       const td = document.createElement("td");
       let v = c.value ? c.value(r) : get(r, c.key);
@@ -3121,26 +3124,35 @@ function incomeVsBudget(rowsLatest, filter = "All") {
           if (drillLevel === 1 && drilledProp) {
             const full = monthlySeriesForProperty(drilledProp);
             const s = sliceByTimeframe(full, timelineFilter); // Use filtered data
-            const rowsTbl = s.labels.map((m, idx) => ({
-              Month: m,
-              Actual: s.act[idx],
-              Budget: s.bud[idx],
-              Pct: (s.bud[idx] ? ((s.act[idx] - s.bud[idx]) / s.bud[idx]) : NaN)
-            }));
+            const rowsTbl = s.labels.map((m, idx) => {
+              const act = s.act[idx];
+              const bud = s.bud[idx];
+              const zeroAct = (act || 0) === 0;
+              const pct = zeroAct ? NaN : (bud ? (act - bud) / bud : NaN);
+              return { Month: m, Actual: act, Budget: bud, Pct: pct, _zeroAct: zeroAct };
+            });
             const totActual = rowsTbl.reduce((a, r) => a + (r.Actual || 0), 0);
             const totBudget = rowsTbl.reduce((a, r) => a + (r.Budget || 0), 0);
+            const totPctWeighted = totBudget > 0 ? ((totActual - totBudget) / totBudget) * 100 : NaN;
             openModal(`Budgeted vs Actual Income — ${drilledProp}`, b => {
               renderTable(b, [
                 { label: "Month",  key: "Month" },
-                { label: "Actual (Month)",  value: r => tickUSD0(r.Actual), class: "num" },
+                { label: "Actual (Month)",  value: r => r._zeroAct ? "N/A" : tickUSD0(r.Actual), class: "num" },
                 { label: "Budget",          value: r => tickUSD0(r.Budget), class: "num" },
-                { label: "% Difference",    value: r => fmtPctSmart(r.Pct * 100), class: "num" }
+                { label: "% Difference",    value: r => r._zeroAct || !isFinite(r.Pct) ? "N/A" : fmtPctSmart(r.Pct * 100), class: "num" }
               ], rowsTbl, undefined, {
                 "Actual (Month)": tickUSD0(totActual),
                 "Budget": tickUSD0(totBudget),
-                "% Difference": fmtPctSmart(totBudget ? ((totActual - totBudget) / totBudget) * 100 : NaN)
+                "% Difference": isFinite(totPctWeighted) ? fmtPctSmart(totPctWeighted) : "N/A"
+              }, {
+                rowClass: r => r._zeroAct ? "income-row-na" : ""
               });
-            }, rowsTbl);
+            }, rowsTbl.map(r => ({
+              Month: r.Month,
+              Actual: r._zeroAct ? "N/A" : r.Actual,
+              Budget: r.Budget,
+              Pct: r._zeroAct || !isFinite(r.Pct) ? "N/A" : r.Pct
+            })));
           }
         }
       }
