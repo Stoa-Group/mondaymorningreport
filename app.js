@@ -4251,51 +4251,6 @@ function reviewsTable(reviews, property, rating, category){
     }
   }
 
-  const LEASING_SUMMARY_API = "https://stoagroupdb-ddre.onrender.com/api/leasing/dashboard/summary";
-  /** Same Delta vs Budget (EOM projected) as Leasing Hub — from DailyPropertyMetrics. */
-  let leasingHubDeltaMaps = null;
-
-  async function fetchLeasingHubDeltas() {
-    try {
-      const res = await fetch(LEASING_SUMMARY_API, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      const byLower = {};
-      const byEntity = {};
-      const bp = json.kpis && json.kpis.byProperty;
-      if (bp && typeof bp === "object") {
-        Object.keys(bp).forEach((k) => {
-          const entry = bp[k];
-          const d = entry && entry.deltaToBudget;
-          if (d != null && typeof d === "number" && isFinite(d)) {
-            const lk = (k || "").trim().toLowerCase();
-            if (lk) byLower[lk] = d;
-            const ekey = propEntityKey(k);
-            if (ekey && byEntity[ekey] === undefined) byEntity[ekey] = d;
-          }
-        });
-      }
-      console.log(`[LeasingHub] deltaToBudget for ${Object.keys(byLower).length} properties`);
-      return { byLower, byEntity };
-    } catch (e) {
-      console.warn("[LeasingHub] Could not fetch dashboard summary (Domo spot delta fallback):", e);
-      return null;
-    }
-  }
-
-  function getDeltaFromLeasingHub(propertyName) {
-    if (!leasingHubDeltaMaps) return null;
-    const lower = (propertyName || "").trim().toLowerCase();
-    if (leasingHubDeltaMaps.byLower && leasingHubDeltaMaps.byLower[lower] != null) {
-      return leasingHubDeltaMaps.byLower[lower];
-    }
-    const ek = propEntityKey(propertyName);
-    if (ek && leasingHubDeltaMaps.byEntity && leasingHubDeltaMaps.byEntity[ek] != null) {
-      return leasingHubDeltaMaps.byEntity[ek];
-    }
-    return null;
-  }
-
   function overlayDbStatus(rows, statusMap) {
     if (!statusMap || Object.keys(statusMap).length === 0) return rows;
     const entityToStatus = {};
@@ -4327,13 +4282,11 @@ function reviewsTable(reviews, property, rating, category){
   let propertyListFetchOk = false;
 
   async function init(){
-    const [mmrRaw, revRaw, plResult, hubMaps] = await Promise.all([
+    const [mmrRaw, revRaw, plResult] = await Promise.all([
       fetchAlias(ALIASES.MMR, FIELDS.MMR),
       fetchAlias(ALIASES.REV, FIELDS.REV).catch(()=>[]),
-      fetchPropertyListStatus(),
-      fetchLeasingHubDeltas()
+      fetchPropertyListStatus()
     ]);
-    leasingHubDeltaMaps = hubMaps;
     propertyStatusMap = plResult.statusMap || plResult || {};
     propertyCanonicalActive = plResult.canonicalProperties || [];
     propertyListRows = plResult.propertyListRows || [];
@@ -4884,9 +4837,8 @@ function render(){
     }, exportData);
   }
 
+/** Spot Δ units vs budget from this row’s Occ % and Budget Occ % (matches typical PM spreadsheet). Not EOM/projected delta from Leasing Hub / DailyPropertyMetrics. */
 function mmrDeltaUnitsVsBudget(r) {
-  const hub = getDeltaFromLeasingHub(get(r, "Property"));
-  if (hub != null && isFinite(hub)) return hub;
   const units = asNum(get(r, "Units")) || 0;
   let occ = asNum(get(r, "OccupancyPercent"));
   let bOcc = asNum(get(r, "BudgetedOccupancyPercentageCurrentMonth"));
