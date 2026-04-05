@@ -84,6 +84,14 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Split app files (load order matters — no ES modules, plain scripts) -->
+  <script src="app-state.js"></script>
+  <script src="app-utils.js"></script>
+  <script src="app-data.js"></script>
+  <script src="app-render.js"></script>
+  <script src="app-render-2.js"></script>
+  <script src="app-render-3.js"></script>
+  <script src="app-ui.js"></script>
+  <script src="app-init.js"></script>
 </body>
 </html>

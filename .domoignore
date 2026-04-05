@@ -1,0 +1,9 @@
+app.js
+*.backup
+*.md
+docs/
+.claude/
+.cursor/
+node_modules/
+*.log
+**/* copy*
